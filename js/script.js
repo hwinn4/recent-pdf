@@ -35,7 +35,7 @@ function searchHistory () {
 
           let title = document.createElement('p')
           title.classList.add('link-title')
-          title.innerText = pdfTitle(page.url)
+          title.innerText = onlinePdfTitle(page.url)
           let linkUrl = document.createElement('p')
           linkUrl.classList.add('link-url')
           linkUrl.innerHTML =
@@ -47,7 +47,7 @@ function searchHistory () {
 
           let save = document.createElement('p')
           save.classList.add('save-link')
-          save.dataset.title = pdfTitle(page.url)
+          save.dataset.title = onlinePdfTitle(page.url)
           save.dataset.url = page.url
           save.innerText = 'save!'
 
@@ -62,7 +62,7 @@ function searchHistory () {
             })
 
           saveDiv.addEventListener('click', function(e) {
-            savePdf(e)
+            saveOnlinePdf(e)
           })
 
           listItem.appendChild(saveDiv)
@@ -78,7 +78,7 @@ function searchHistory () {
   })
 }
 
-function pdfTitle(url) {
+function onlinePdfTitle(url) {
   var decodedUri = decodeURI(url)
   var startIdx = url.lastIndexOf('/') + 1
   var endIdx = url.length - 4
@@ -86,23 +86,58 @@ function pdfTitle(url) {
   return decodedUri.substring(startIdx, endIdx)
 }
 
-function savePdf(e) {
+function localPdfTitle(filename) {
+  var startIdx = filename.lastIndexOf('\\') + 1
+  var endIdx = filename.length - 4
+  return filename.substring(startIdx, endIdx)
+}
+
+function localDisplayPath(filename) {
+  return filename.substring(0, 50)
+}
+
+function saveOnlinePdf(e) {
   var title = e.target.dataset.title
   var pdfUrl = e.target.dataset.url
-  var newSavedPdf = {title: title, url: pdfUrl}
+  var newSavedPdf = {
+    title: title,
+    url: pdfUrl,
+    type: 'online'
+  }
 
-  chrome.storage.sync.get('savedPdfs', function(response) {
+  getFromStorage(function(response) {
     var currentSaves = response.savedPdfs || []
-    if (!alreadySaved(currentSaves, pdfUrl)) {
+    if (!alreadySaved(currentSaves, 'url', pdfUrl)) {
       currentSaves.push(newSavedPdf)
       setInStorage(currentSaves)
     }
   })
 }
 
-function alreadySaved(currentSaves, newUrl) {
+function saveLocalPdf(e) {
+  var title = e.target.dataset.title
+  var fileId = e.target.dataset.fileId
+  var displayPath = e.target.dataset.displayPath
+  var newSavedPdf = {
+    title: title, 
+    fileId: fileId,
+    displayPath: displayPath,
+    type: 'local'
+  }
+
+  getFromStorage(function(response) {
+    var currentSaves = response.savedPdfs || []
+    if (!alreadySaved(currentSaves, 'fileId', fileId)) {
+      currentSaves.push(newSavedPdf)
+      setInStorage(currentSaves)
+    }
+  })
+
+}
+
+function alreadySaved(currentSaves, key, newVal) {
   return currentSaves.some(function(savedPdf) {
-    return savedPdf.url === newUrl
+    return savedPdf[key] === newVal
   })
 }
 
@@ -111,6 +146,10 @@ function setInStorage(currentSaves) {
   chrome.storage.sync.set({savedPdfs: currentSaves}, function(response) {
     console.log('pdf saved') 
   });
+}
+
+function getFromStorage(callback) {
+  chrome.storage.sync.get('savedPdfs', callback)
 }
 
 let localFiles = []
@@ -128,8 +167,10 @@ function searchDownloads () {
           localFiles.push(file.filename)
           localPdfCount++
 
+          let saveDiv = document.createElement('div')
           let leftDiv = document.createElement('div')
           let rightDiv = document.createElement('div')
+          saveDiv.classList.add('list-div', 'left')
           leftDiv.classList.add('list-div', 'left')
           rightDiv.classList.add('list-div', 'right')
 
@@ -149,14 +190,21 @@ function searchDownloads () {
           let title = document.createElement('p')
           title.classList.add('link-title')
           title.classList.add('local-title')
-          title.innerText = file.filename.substring(
-            file.filename.lastIndexOf('\\') + 1, file.filename.length - 4)
+          title.innerText = localPdfTitle(file.filename)
 
           let linkUrl = document.createElement('p')
           linkUrl.classList.add('link-url')
-          linkUrl.innerHTML = file.filename.substring(0, 50)
+          linkUrl.innerHTML = localDisplayPath(file.filename)
           // linkUrl.innerHTML = file.filename // .substring(0, file.filename.lastIndexOf('/'))
 
+          let save = document.createElement('p')
+          save.classList.add('save-link')
+          save.dataset.title = localPdfTitle(file.filename)
+          save.dataset.fileId = file.id
+          save.dataset.displayPath = localDisplayPath(file.filename)
+          save.innerText = 'save!'
+
+          saveDiv.appendChild(save)
           leftDiv.appendChild(icon)
           leftDiv.appendChild(title)
           leftDiv.appendChild(linkUrl)
@@ -175,8 +223,13 @@ function searchDownloads () {
               chrome.downloads.show(file.id)
             })
 
+          saveDiv.addEventListener('click', function(e) {
+            saveLocalPdf(e)
+          })
+
           rightDiv.appendChild(more)
 
+          fileItem.appendChild(saveDiv)
           fileItem.appendChild(leftDiv)
           fileItem.appendChild(rightDiv)
           fileElement.appendChild(fileItem)
