@@ -12,25 +12,6 @@ let fileElement = document.getElementById('file-list') // offline (local) file l
 
 loadSettings() // load the user settings
 searchHistory()
-checkStorage()
-
-function checkStorage() {
-  chrome.storage.sync.get('saved' , function(response) {
-    console.log('checkStorage:')
-    console.log(response.saved)
-
-    if (typeof response.saved === 'undefined') {
-      // if the user is using recentPdf for the first time,
-      // initialize saved as an empty array
-      chrome.storage.sync.set({saved: []}, function() {
-        console.log('storage initialized')
-        chrome.storage.sync.get('saved' , function(response) {
-          console.log('Retrieved Value is ' + response.saved);
-        });
-      });
-    }
-  });
-}
 
 function searchHistory () {
   chrome.history.search({
@@ -54,8 +35,7 @@ function searchHistory () {
 
           let title = document.createElement('p')
           title.classList.add('link-title')
-          title.innerText = decodeURI(page.url).substring(
-            page.url.lastIndexOf('/') + 1, page.url.length - 4)
+          title.innerText = pdfTitle(page.url)
           let linkUrl = document.createElement('p')
           linkUrl.classList.add('link-url')
           linkUrl.innerHTML =
@@ -67,6 +47,8 @@ function searchHistory () {
 
           let save = document.createElement('p')
           save.classList.add('save-link')
+          save.dataset.title = pdfTitle(page.url)
+          save.dataset.url = page.url
           save.innerText = 'save!'
 
           saveDiv.appendChild(save)
@@ -79,6 +61,10 @@ function searchHistory () {
               window.open(page.url)
             })
 
+          saveDiv.addEventListener('click', function(e) {
+            savePdf(e)
+          })
+
           listItem.appendChild(saveDiv)
           listItem.appendChild(leftDiv)
           listItem.appendChild(rightDiv)
@@ -90,6 +76,41 @@ function searchHistory () {
     searchDownloads()
     console.log(`${onlineCount} online PDFs found.`)
   })
+}
+
+function pdfTitle(url) {
+  var decodedUri = decodeURI(url)
+  var startIdx = url.lastIndexOf('/') + 1
+  var endIdx = url.length - 4
+
+  return decodedUri.substring(startIdx, endIdx)
+}
+
+function savePdf(e) {
+  var title = e.target.dataset.title
+  var pdfUrl = e.target.dataset.url
+  var newSavedPdf = {title: title, url: pdfUrl}
+
+  chrome.storage.sync.get('savedPdfs', function(response) {
+    var currentSaves = response.savedPdfs || []
+    if (!alreadySaved(currentSaves, pdfUrl)) {
+      currentSaves.push(newSavedPdf)
+      setInStorage(currentSaves)
+    }
+  })
+}
+
+function alreadySaved(currentSaves, newUrl) {
+  return currentSaves.some(function(savedPdf) {
+    return savedPdf.url === newUrl
+  })
+}
+
+function setInStorage(currentSaves) {
+  // TODO: Use semicolons or not?
+  chrome.storage.sync.set({savedPdfs: currentSaves}, function(response) {
+    console.log('pdf saved') 
+  });
 }
 
 let localFiles = []
