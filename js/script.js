@@ -12,6 +12,25 @@ let fileElement = document.getElementById('file-list') // offline (local) file l
 
 loadSettings() // load the user settings
 searchHistory()
+checkStorage()
+
+function checkStorage() {
+  chrome.storage.sync.get('saved' , function(response) {
+    console.log('checkStorage:')
+    console.log(response.saved)
+
+    if (typeof response.saved === 'undefined') {
+      // if the user is using recentPdf for the first time,
+      // initialize saved as an empty array
+      chrome.storage.sync.set({saved: []}, function() {
+        console.log('storage initialized')
+        chrome.storage.sync.get('saved' , function(response) {
+          console.log('Retrieved Value is ' + response.saved);
+        });
+      });
+    }
+  });
+}
 
 function searchHistory () {
   chrome.history.search({
