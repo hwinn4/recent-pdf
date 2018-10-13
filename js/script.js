@@ -45,8 +45,10 @@ function searchHistory () {
         if (!page.url.startsWith('file:')) {
           onlineCount++
 
+          let saveDiv = document.createElement('div')
           let leftDiv = document.createElement('div')
           let rightDiv = document.createElement('div')
+          saveDiv.classList.add('list-div', 'left')
           leftDiv.classList.add('list-div', 'left')
           rightDiv.classList.add('list-div', 'right')
 
@@ -63,6 +65,11 @@ function searchHistory () {
           icon.classList.add('link-thumb')
           icon.src = `chrome://favicon/${page.url}`
 
+          let save = document.createElement('p')
+          save.classList.add('save-link')
+          save.innerText = 'save!'
+
+          saveDiv.appendChild(save)
           leftDiv.appendChild(icon)
           leftDiv.appendChild(title)
           leftDiv.appendChild(linkUrl)
@@ -72,6 +79,7 @@ function searchHistory () {
               window.open(page.url)
             })
 
+          listItem.appendChild(saveDiv)
           listItem.appendChild(leftDiv)
           listItem.appendChild(rightDiv)
           onlineList.appendChild(listItem)
