@@ -36,7 +36,6 @@ body {
 .tab-header {
 	background-color: #f1f1f1;
 	border-bottom: 1px solid #ddd;
-	display: grid;
 	grid-template-columns: 50% 50%;
 	height: 32px;
 	margin: 0 0 0 0px;

@@ -6,12 +6,14 @@
 
 let localPdfCount = 0
 let onlineCount = 0
+let savedPdfCount = 0
 
 let onlineList = document.getElementById('link-list') // online file list
 let fileElement = document.getElementById('file-list') // offline (local) file list
 
 loadSettings() // load the user settings
 searchHistory()
+listSavedPdfs()
 
 function searchHistory () {
   chrome.history.search({
@@ -72,7 +74,7 @@ function searchHistory () {
         }
       }
     })
-    footer(onlineCount)
+    footer(onlineCount, 'online')
     searchDownloads()
     console.log(`${onlineCount} online PDFs found.`)
   })
@@ -94,62 +96,6 @@ function localPdfTitle(filename) {
 
 function localDisplayPath(filename) {
   return filename.substring(0, 50)
-}
-
-function saveOnlinePdf(e) {
-  var title = e.target.dataset.title
-  var pdfUrl = e.target.dataset.url
-  var newSavedPdf = {
-    title: title,
-    url: pdfUrl,
-    type: 'online'
-  }
-
-  getFromStorage(function(response) {
-    var currentSaves = response.savedPdfs || []
-    if (!alreadySaved(currentSaves, 'url', pdfUrl)) {
-      currentSaves.push(newSavedPdf)
-      setInStorage(currentSaves)
-    }
-  })
-}
-
-function saveLocalPdf(e) {
-  var title = e.target.dataset.title
-  var fileId = e.target.dataset.fileId
-  var displayPath = e.target.dataset.displayPath
-  var newSavedPdf = {
-    title: title, 
-    fileId: fileId,
-    displayPath: displayPath,
-    type: 'local'
-  }
-
-  getFromStorage(function(response) {
-    var currentSaves = response.savedPdfs || []
-    if (!alreadySaved(currentSaves, 'fileId', fileId)) {
-      currentSaves.push(newSavedPdf)
-      setInStorage(currentSaves)
-    }
-  })
-
-}
-
-function alreadySaved(currentSaves, key, newVal) {
-  return currentSaves.some(function(savedPdf) {
-    return savedPdf[key] === newVal
-  })
-}
-
-function setInStorage(currentSaves) {
-  // TODO: Use semicolons or not?
-  chrome.storage.sync.set({savedPdfs: currentSaves}, function(response) {
-    console.log('pdf saved') 
-  });
-}
-
-function getFromStorage(callback) {
-  chrome.storage.sync.get('savedPdfs', callback)
 }
 
 let localFiles = []
@@ -245,7 +191,7 @@ function searchDownloads () {
   })
 }
 
-function footer (count) {
+function footer(count, contextString) {
   let plural = (count > 1 ? 's' : '')
 
   let footerDivs = document.getElementsByClassName('footer')
@@ -253,35 +199,30 @@ function footer (count) {
 
   let countDisplay = document.getElementById('count-display')
 
-  countDisplay.innerHTML = `Showing ${count} online PDF${plural}.`
-}
-
-function localFooter (count) {
-  let plural = (count > 1 ? 's' : '')
-
-  let footerDivs = document.getElementsByClassName('footer')
-  let footerLeft = document.getElementById('footer-left')
-
-  let countDisplay = document.getElementById('count-display')
-
-  countDisplay.innerHTML = `Showing ${count} local PDF${plural}.`
+  countDisplay.innerHTML = `Showing ${count} ${contextString} PDF${plural}.`
 }
 
 // tab buttons
 let onlineTabLink = document.getElementById('online-tab-link')
 let localTabLink = document.getElementById('local-tab-link')
+let savedTabLink = document.getElementById('saved-tab-link')
 let settingsTabLink = document.getElementById('settings-link')
 
 // event handlers for tab buttons
 onlineTabLink.addEventListener('click',
   function (event) {
-    footer(onlineCount)
+    footer(onlineCount, 'online')
     openTab(event, 'online')
   })
 
 localTabLink.addEventListener('click', function (event) {
-  localFooter(localPdfCount)
+  footer(localPdfCount, 'local')
   openTab(event, 'local')
+})
+
+savedTabLink.addEventListener('click', function (event) {
+  footer(savedPdfCount, 'saved')
+  openTab(event, 'saved')
 })
 
 settingsTabLink.addEventListener(
@@ -319,4 +260,76 @@ function loadSettings () {
       // TODO
     }
   })
+}
+
+// *******SAVING PDFs*******
+var allSavedPdfs = []
+function listSavedPdfs() {
+  return getFromStorage((response) => {
+    const pdfs = response.savedPdfs
+    savedPdfCount = response.savedPdfs.length
+
+    pdfs.forEach(function(pdfData) {
+      allSavedPdfs.push(pdfData)
+    })
+  })
+}
+
+function populateSavedTab() {
+
+}
+
+function saveOnlinePdf(e) {
+  var title = e.target.dataset.title
+  var pdfUrl = e.target.dataset.url
+  var newSavedPdf = {
+    title: title,
+    url: pdfUrl,
+    type: 'online'
+  }
+
+  getFromStorage(function(response) {
+    var currentSaves = response.savedPdfs || []
+    if (!isAlreadySaved(currentSaves, 'url', pdfUrl)) {
+      currentSaves.push(newSavedPdf)
+      setInStorage(currentSaves)
+    }
+  })
+}
+
+function saveLocalPdf(e) {
+  var title = e.target.dataset.title
+  var fileId = e.target.dataset.fileId
+  var displayPath = e.target.dataset.displayPath
+  var newSavedPdf = {
+    title: title, 
+    fileId: fileId,
+    displayPath: displayPath,
+    type: 'local'
+  }
+
+  getFromStorage(function(response) {
+    var currentSaves = response.savedPdfs || []
+    if (!isAlreadySaved(currentSaves, 'fileId', fileId)) {
+      currentSaves.push(newSavedPdf)
+      setInStorage(currentSaves)
+    }
+  })
+}
+
+function isAlreadySaved(currentSaves, key, newVal) {
+  return currentSaves.some(function(savedPdf) {
+    return savedPdf[key] === newVal
+  })
+}
+
+function setInStorage(currentSaves) {
+  // TODO: Use semicolons or not?
+  chrome.storage.sync.set({savedPdfs: currentSaves}, function(response) {
+    console.log('pdf saved') 
+  });
+}
+
+function getFromStorage(callback) {
+  return chrome.storage.sync.get('savedPdfs', callback)
 }
