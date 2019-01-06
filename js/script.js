@@ -10,10 +10,12 @@ let savedPdfCount = 0
 
 let onlineList = document.getElementById('link-list') // online file list
 let fileElement = document.getElementById('file-list') // offline (local) file list
+let savedList = document.getElementById('saved-list') // saved file list (from chrome storage)
 
 loadSettings() // load the user settings
 searchHistory()
-listSavedPdfs()
+// listSavedPdfs()
+populateSavedTab()
 
 function searchHistory () {
   chrome.history.search({
@@ -276,7 +278,40 @@ function listSavedPdfs() {
 }
 
 function populateSavedTab() {
+  getFromStorage(buildSavedMarkup)
+}
 
+function buildSavedMarkup(savedPdfObject) {
+  savedPdfObject.savedPdfs.forEach(function(pdf) {
+    let listItem = document.createElement('li')
+    listItem.classList.add('list-item')
+
+    let leftDiv = document.createElement('div')
+    let rightDiv = document.createElement('div')
+
+    leftDiv.classList.add('list-div', 'left')
+    rightDiv.classList.add('list-div', 'right')
+
+    let title = document.createElement('p')
+    title.classList.add('link-title')
+    title.innerText = pdf.title
+
+    let icon = document.createElement('img')
+    icon.classList.add('link-thumb')
+    icon.src = '' // TODO: Resolve this!
+
+    leftDiv.appendChild(icon)
+    leftDiv.appendChild(title)
+    leftDiv.addEventListener('click',
+      function () {
+        // window.open(pdf.url)
+        console.log('i want to open this!')
+      })
+
+    listItem.appendChild(leftDiv)
+    listItem.appendChild(rightDiv)
+    savedList.appendChild(listItem)
+  })
 }
 
 function saveOnlinePdf(e) {
@@ -302,7 +337,7 @@ function saveLocalPdf(e) {
   var fileId = e.target.dataset.fileId
   var displayPath = e.target.dataset.displayPath
   var newSavedPdf = {
-    title: title, 
+    title: title,
     fileId: fileId,
     displayPath: displayPath,
     type: 'local'

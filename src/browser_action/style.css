@@ -15,7 +15,7 @@ body {
 	width: 100%;
 	max-height: 100%;
 	/* overflow-y: scroll;
-	padding-right: 21px; 
+	padding-right: 21px;
 	box-sizing: content-box;
 	overflow-x: hidden; */
 	overflow: hidden;
@@ -101,11 +101,11 @@ div.left {
 .tabcontent::-webkit-scrollbar {
     width: 6px;
 }
- 
+
 .tabcontent::-webkit-scrollbar-track {
     -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
 }
- 
+
 .tabcontent::-webkit-scrollbar-thumb {
   background-color: darkgrey;
   outline: 1px solid slategrey;
@@ -113,7 +113,8 @@ div.left {
 
 
 #link-list,
-#file-list {
+#file-list,
+#saved-list {
 	display: inline-block;
 	font-size: 14px;
 	height: auto;
@@ -122,6 +123,11 @@ div.left {
 	min-width: 180px;
 	padding: 0px 0px 0px 0px;
 	width: 100%;
+}
+
+/*  TODO: This fixed my styling issues, but I'm not sure why it wasn't behaving this way automatically. Both of the other tabs were automatically set this way. */
+#saved-list {
+	display: block;
 }
 
 .list-item {
