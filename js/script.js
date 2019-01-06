@@ -312,7 +312,7 @@ function buildSavedMarkup(savedPdfObject) {
 
     let icon = document.createElement('img')
     icon.classList.add('link-thumb')
-    icon.src = '' // TODO: Resolve this!
+    icon.src = typeof pdf.iconUrl === 'undefined' ? '' : pdf.iconUrl
 
     leftDiv.appendChild(icon)
     leftDiv.appendChild(title)
@@ -335,16 +335,10 @@ function saveOnlinePdf(e) {
     title: title,
     url: pdfUrl,
     type: 'online',
-    icon: `chrome://favicon/${pdfUrl}`
+    iconUrl: `chrome://favicon/${pdfUrl}`
   }
 
-  getFromStorage(function(response) {
-    var currentSaves = response.savedPdfs || []
-    if (!isAlreadySaved(currentSaves, 'url', pdfUrl)) {
-      currentSaves.push(newSavedPdf)
-      setInStorage(currentSaves)
-    }
-  })
+  saveToStorage(newSavedPdf, 'url', pdfUrl)
 }
 
 function saveLocalPdf(e) {
@@ -358,9 +352,13 @@ function saveLocalPdf(e) {
     type: 'local'
   }
 
+  saveToStorage(newSavedPdf, 'fileId', fileId)
+}
+
+function saveToStorage(newSavedPdf, uniqueKey, uniqueKeyVal) {
   getFromStorage(function(response) {
     var currentSaves = response.savedPdfs || []
-    if (!isAlreadySaved(currentSaves, 'fileId', fileId)) {
+    if (!isAlreadySaved(currentSaves, uniqueKey, uniqueKeyVal)) {
       currentSaves.push(newSavedPdf)
       setInStorage(currentSaves)
     }
