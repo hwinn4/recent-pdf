@@ -334,7 +334,8 @@ function saveOnlinePdf(e) {
   var newSavedPdf = {
     title: title,
     url: pdfUrl,
-    type: 'online'
+    type: 'online',
+    icon: `chrome://favicon/${pdfUrl}`
   }
 
   getFromStorage(function(response) {
