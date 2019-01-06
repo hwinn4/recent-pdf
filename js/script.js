@@ -278,7 +278,35 @@ function listSavedPdfs() {
 }
 
 function populateSavedTab() {
-  getFromStorage(buildSavedMarkup)
+  getFromStorage(getDownloadIcons)
+}
+
+function getDownloadIcons(chromeStorage) {
+  if (typeof chromeStorage.savedPdfs === 'undefined') { return }
+
+  let savedPdfsCopy = JSON.parse(JSON.stringify(chromeStorage.savedPdfs))
+  let promises = []
+
+  savedPdfsCopy.forEach(function(pdf) {
+    if (pdf.type === 'online') { return }
+    promises.push(new Promise(function(resolve, reject) {
+      const fileIdString = pdf.fileId
+      const fileIdInt = parseInt(fileIdString)
+
+      chrome.downloads.getFileIcon(
+        fileIdInt, {
+          size: 16
+        },
+        function (iconUrl) {
+          pdf.iconUrl = iconUrl
+          resolve()
+        })
+    }))
+  })
+
+  Promise.all(promises).then(function(results) {
+    buildSavedMarkup(savedPdfsCopy)
+  })
 }
 
 function footerData(savedPdfCollection) {
@@ -292,11 +320,11 @@ function footerData(savedPdfCollection) {
   footer(count, 'saved')
 }
 
-function buildSavedMarkup(savedPdfObject) {
-  footerData(savedPdfObject.savedPdfs)
-  if (typeof savedPdfObject.savedPdfs === 'undefined') { return }
+function buildSavedMarkup(savedPdfCollection) {
+  footerData(savedPdfCollection)
+  // if (typeof savedPdfObject.savedPdfs === 'undefined') { return }
 
-  savedPdfObject.savedPdfs.forEach(function(pdf) {
+  savedPdfCollection.forEach(function(pdf) {
     let listItem = document.createElement('li')
     listItem.classList.add('list-item')
 
@@ -374,7 +402,7 @@ function isAlreadySaved(currentSaves, key, newVal) {
 function setInStorage(currentSaves) {
   // TODO: Use semicolons or not?
   chrome.storage.sync.set({savedPdfs: currentSaves}, function(response) {
-    console.log('pdf saved') 
+    console.log('pdf saved')
   });
 }
 
