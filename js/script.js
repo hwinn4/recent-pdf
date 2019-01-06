@@ -15,7 +15,6 @@ let savedList = document.getElementById('saved-list') // saved file list (from c
 loadSettings() // load the user settings
 searchHistory()
 // listSavedPdfs()
-populateSavedTab()
 
 function searchHistory () {
   chrome.history.search({
@@ -223,7 +222,9 @@ localTabLink.addEventListener('click', function (event) {
 })
 
 savedTabLink.addEventListener('click', function (event) {
-  footer(savedPdfCount, 'saved')
+  savedTabContainer = document.getElementById('saved-list')
+  while (savedTabContainer.firstChild) savedTabContainer.removeChild(savedTabContainer.firstChild);
+  populateSavedTab()
   openTab(event, 'saved')
 })
 
@@ -268,8 +269,7 @@ function loadSettings () {
 var allSavedPdfs = []
 function listSavedPdfs() {
   return getFromStorage((response) => {
-    const pdfs = response.savedPdfs
-    savedPdfCount = response.savedPdfs.length
+
 
     pdfs.forEach(function(pdfData) {
       allSavedPdfs.push(pdfData)
@@ -281,7 +281,21 @@ function populateSavedTab() {
   getFromStorage(buildSavedMarkup)
 }
 
+function footerData(savedPdfCollection) {
+  let count
+  if (savedPdfCollection) {
+    count = savedPdfCollection.length
+  } else {
+    count = 0
+  }
+
+  footer(count, 'saved')
+}
+
 function buildSavedMarkup(savedPdfObject) {
+  footerData(savedPdfObject.savedPdfs)
+  if (typeof savedPdfObject.savedPdfs === 'undefined') { return }
+
   savedPdfObject.savedPdfs.forEach(function(pdf) {
     let listItem = document.createElement('li')
     listItem.classList.add('list-item')
