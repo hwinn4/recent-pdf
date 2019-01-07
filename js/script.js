@@ -6,7 +6,6 @@
 
 let localPdfCount = 0;
 let onlineCount = 0;
-let savedPdfCount = 0;
 
 let onlineList = document.getElementById("link-list"); // online file list
 let fileElement = document.getElementById("file-list"); // offline (local) file list
@@ -223,6 +222,8 @@ localTabLink.addEventListener("click", function(event) {
 
 savedTabLink.addEventListener("click", function(event) {
   savedTabContainer = document.getElementById("saved-list");
+  // clear the container so that live reload on click
+  // doesn't result in duplicate rows
   while (savedTabContainer.firstChild)
     savedTabContainer.removeChild(savedTabContainer.firstChild);
   populateSavedTab();
@@ -266,6 +267,7 @@ function loadSettings() {
 
 // *******SAVING AND DISPLAYING SAVED PDFs*******
 function populateSavedTab() {
+  // TODO: Should I have called the icons method from within the build markup function?
   getFromStorage(getDownloadIcons);
 }
 
@@ -307,28 +309,30 @@ function getDownloadIcons(chromeStorage) {
 }
 
 function footerData(savedPdfCollection) {
-  let count;
-  if (savedPdfCollection) {
-    count = savedPdfCollection.length;
-  } else {
-    count = 0;
-  }
+  const count = (typeof savedPdfCollection === 'undefined')
+    ? 0
+    : savedPdfCollection.length
 
   footer(count, "saved");
 }
 
 function buildSavedMarkup(savedPdfCollection) {
   savedPdfCollection.forEach(function(pdf) {
-    let listItem = document.createElement("li");
-    listItem.classList.add("list-item");
-
-    const leftDiv = buildLeftDiv(pdf);
-    const rightDiv = buildRightDiv(pdf);
-
-    listItem.appendChild(leftDiv);
-    listItem.appendChild(rightDiv);
+    const listItem = buildListItem(pdf)
     savedList.appendChild(listItem);
   });
+}
+
+function buildListItem(pdf) {
+  let listItem = document.createElement("li");
+  listItem.classList.add("list-item");
+
+  const leftDiv = buildLeftDiv(pdf);
+  const rightDiv = buildRightDiv(pdf);
+
+  listItem.appendChild(leftDiv);
+  listItem.appendChild(rightDiv);
+  return listItem
 }
 
 function buildRightDiv(pdf) {
@@ -388,7 +392,6 @@ function pdfTitle(pdf) {
 }
 
 function formatPdfDisplayPath(pathString, type) {
-  console.log(pathString, type)
   return type === "online"
     ? onlineDisplayPath(pathString)
     : localDisplayPath(pathString);
@@ -444,7 +447,6 @@ function isAlreadySaved(currentSaves, key, newVal) {
 }
 
 function setInStorage(currentSaves) {
-  // TODO: Use semicolons or not?
   chrome.storage.sync.set({ savedPdfs: currentSaves }, function(response) {
     console.log("pdf saved");
   });
