@@ -282,6 +282,7 @@ function populateSavedTab() {
 }
 
 function getDownloadIcons(chromeStorage) {
+  footerData(chromeStorage.savedPdfs)
   if (typeof chromeStorage.savedPdfs === 'undefined') { return }
 
   let savedPdfsCopy = JSON.parse(JSON.stringify(chromeStorage.savedPdfs))
@@ -321,9 +322,6 @@ function footerData(savedPdfCollection) {
 }
 
 function buildSavedMarkup(savedPdfCollection) {
-  footerData(savedPdfCollection)
-  // if (typeof savedPdfObject.savedPdfs === 'undefined') { return }
-
   savedPdfCollection.forEach(function(pdf) {
     let listItem = document.createElement('li')
     listItem.classList.add('list-item')
