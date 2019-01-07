@@ -52,7 +52,11 @@ function searchHistory() {
             save.classList.add("save-link");
             save.dataset.title = onlinePdfTitle(page.url);
             save.dataset.url = page.url;
-            save.innerText = "save!";
+
+            let saveIcon = document.createElement("img");
+            saveIcon.id = page.url;
+            saveIcon.src = "../../assets/icons8-pin-24_white.png";
+            save.appendChild(saveIcon);
 
             saveDiv.appendChild(save);
             leftDiv.appendChild(icon);
@@ -404,8 +408,11 @@ function onlineDisplayPath(pathString) {
 }
 
 function saveOnlinePdf(e) {
-  var title = e.target.dataset.title;
-  var pdfUrl = e.target.dataset.url;
+  const saveIcon = document.getElementById(e.target.id)
+  const saveDiv = saveIcon.closest(".save-link")
+
+  var title = saveDiv.dataset.title;
+  var pdfUrl = saveDiv.dataset.url;
   var newSavedPdf = {
     title: title,
     url: pdfUrl,
@@ -447,7 +454,7 @@ function isAlreadySaved(currentSaves, key, newVal) {
 }
 
 function setInStorage(currentSaves) {
-  chrome.storage.sync.set({ savedPdfs: currentSaves }, function(response) {
+    chrome.storage.sync.set({ savedPdfs: currentSaves }, function(response) {
     console.log("pdf saved");
   });
 }
