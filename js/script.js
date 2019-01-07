@@ -48,15 +48,7 @@ function searchHistory() {
             icon.classList.add("link-thumb");
             icon.src = `chrome://favicon/${page.url}`;
 
-            let save = document.createElement("p");
-            save.classList.add("save-link");
-            save.dataset.title = onlinePdfTitle(page.url);
-            save.dataset.url = page.url;
-
-            let saveIcon = document.createElement("img");
-            saveIcon.id = page.url;
-            saveIcon.src = "../../assets/icons8-pin-24_white.png";
-            save.appendChild(saveIcon);
+            const save = buildSaveElement(page, 'online')
 
             saveDiv.appendChild(save);
             leftDiv.appendChild(icon);
@@ -83,6 +75,43 @@ function searchHistory() {
       console.log(`${onlineCount} online PDFs found.`);
     }
   );
+}
+
+function buildSaveElement(pdf, type) {
+  let save = document.createElement("p");
+  save.classList.add("save-link");
+
+  save = (type === 'online')
+    ? onlineSaveDetails(pdf, save)
+    : downloadDataset(pdf, save)
+
+  return save
+}
+
+function onlineSaveDetails(pdf, save) {
+  save.dataset.title = onlinePdfTitle(pdf.url);
+  save.dataset.url = pdf.url;
+
+  const saveIcon = setSaveIcon(pdf)
+  if (saveIcon) {
+    save.appendChild(saveIcon);
+  }
+  return save
+}
+
+function downloadDataset(pdf, save) {
+  save.dataset.title = localPdfTitle(pdf.filename);
+  save.dataset.fileId = pdf.id;
+  save.dataset.url = pdf.filename;
+  save.innerText = "save!";
+  return save
+}
+
+function setSaveIcon(page) {
+  let saveIcon = document.createElement("img");
+  saveIcon.id = page.url;
+  saveIcon.src = "../../assets/icons8-pin-24_white.png";
+  return saveIcon
 }
 
 function onlinePdfTitle(url) {
@@ -150,12 +179,7 @@ function searchDownloads() {
             linkUrl.innerHTML = localDisplayPath(file.filename);
             // linkUrl.innerHTML = file.filename // .substring(0, file.filename.lastIndexOf('/'))
 
-            let save = document.createElement("p");
-            save.classList.add("save-link");
-            save.dataset.title = localPdfTitle(file.filename);
-            save.dataset.fileId = file.id;
-            save.dataset.url = file.filename;
-            save.innerText = "save!";
+            const save = buildSaveElement(file, 'download')
 
             saveDiv.appendChild(save);
             leftDiv.appendChild(icon);
