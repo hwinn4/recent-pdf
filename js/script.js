@@ -322,36 +322,69 @@ function buildSavedMarkup(savedPdfCollection) {
     let listItem = document.createElement("li");
     listItem.classList.add("list-item");
 
-    let leftDiv = document.createElement("div");
-    let rightDiv = document.createElement("div");
-
-    leftDiv.classList.add("list-div", "left");
-    rightDiv.classList.add("list-div", "right");
-
-    let title = document.createElement("p");
-    title.classList.add("link-title");
-    title.innerText = pdf.title;
-
-    let linkUrl = document.createElement("p");
-    linkUrl.classList.add("link-url");
-    linkUrl.innerHTML = formatPdfDisplayPath(pdf.url)
-
-    let icon = document.createElement("img");
-    icon.classList.add("link-thumb");
-    icon.src = typeof pdf.iconUrl === "undefined" ? "" : pdf.iconUrl;
-
-    leftDiv.appendChild(icon);
-    leftDiv.appendChild(title);
-    leftDiv.appendChild(linkUrl);
-    leftDiv.addEventListener("click", function() {
-      // window.open(pdf.url)
-      console.log("i want to open this!");
-    });
+    const leftDiv = buildLeftDiv(pdf);
+    const rightDiv = buildRightDiv(pdf);
 
     listItem.appendChild(leftDiv);
     listItem.appendChild(rightDiv);
     savedList.appendChild(listItem);
   });
+}
+
+function buildRightDiv(pdf) {
+  let rightDiv = document.createElement("div");
+  rightDiv.classList.add("list-div", "right");
+  if (pdf.type === 'online') { return rightDiv }
+
+  let more = document.createElement("img");
+  more.id = "more_icon";
+  more.src = "../../assets/More.png";
+  more.addEventListener("click", function() {
+    chrome.downloads.show(parseInt(pdf.fileId));
+  });
+
+  rightDiv.appendChild(more);
+
+  return rightDiv
+}
+
+function buildLeftDiv(pdf) {
+  let leftDiv = document.createElement("div");
+  leftDiv.classList.add("list-div", "left");
+
+  const title = pdfTitle(pdf)
+  const linkUrl = pdfLinkUrl(pdf)
+  const icon = pdfIcon(pdf)
+
+  leftDiv.appendChild(icon);
+  leftDiv.appendChild(title);
+  leftDiv.appendChild(linkUrl);
+  leftDiv.addEventListener("click", function() {
+    window.open(pdf.url)
+  });
+
+  return leftDiv
+}
+
+function pdfIcon(pdf) {
+  let icon = document.createElement("img");
+  icon.classList.add("link-thumb");
+  icon.src = typeof pdf.iconUrl === "undefined" ? "" : pdf.iconUrl;
+  return icon;
+}
+
+function pdfLinkUrl(pdf) {
+  let linkUrl = document.createElement("p");
+  linkUrl.classList.add("link-url");
+  linkUrl.innerHTML = formatPdfDisplayPath(pdf.url, pdf.type)
+  return linkUrl
+}
+
+function pdfTitle(pdf) {
+  let title = document.createElement("p");
+  title.classList.add("link-title");
+  title.innerText = pdf.title;
+  return title
 }
 
 function formatPdfDisplayPath(pathString, type) {
