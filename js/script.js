@@ -4,218 +4,485 @@
  *  - loads pdf files from downloads api
  */
 
-let localPdfCount = 0
-let onlineCount = 0
+let localPdfCount = 0;
+let onlineCount = 0;
 
-let onlineList = document.getElementById('link-list') // online file list
-let fileElement = document.getElementById('file-list') // offline (local) file list
+let onlineList = document.getElementById("link-list"); // online file list
+let fileElement = document.getElementById("file-list"); // offline (local) file list
+let savedList = document.getElementById("saved-list"); // saved file list (from chrome storage)
 
-loadSettings() // load the user settings
-searchHistory()
+loadSettings(); // load the user settings
+searchHistory();
 
-function searchHistory () {
-  chrome.history.search({
-    text: '.pdf',
-    maxResults: 10000
-  }, function (data) {
-    data.forEach(function (page) {
-      if (page.url.endsWith('.pdf')) { // check if page is a .pdf
-        let listItem = document.createElement('li')
-        listItem.classList.add('list-item')
+function searchHistory() {
+  chrome.history.search(
+    {
+      text: ".pdf",
+      maxResults: 10000
+    },
+    function(data) {
+      data.forEach(function(page) {
+        if (page.url.endsWith(".pdf")) {
+          // check if page is a .pdf
+          let listItem = document.createElement("li");
+          listItem.classList.add("list-item");
 
-        if (!page.url.startsWith('file:')) {
-          onlineCount++
+          if (!page.url.startsWith("file:")) {
+            onlineCount++;
 
-          let leftDiv = document.createElement('div')
-          let rightDiv = document.createElement('div')
-          leftDiv.classList.add('list-div', 'left')
-          rightDiv.classList.add('list-div', 'right')
+            let saveDiv = document.createElement("div");
+            let leftDiv = document.createElement("div");
+            let rightDiv = document.createElement("div");
+            saveDiv.classList.add("list-div", "left");
+            leftDiv.classList.add("list-div", "left");
+            rightDiv.classList.add("list-div", "right");
 
-          let title = document.createElement('p')
-          title.classList.add('link-title')
-          title.innerText = decodeURI(page.url).substring(
-            page.url.lastIndexOf('/') + 1, page.url.length - 4)
-          let linkUrl = document.createElement('p')
-          linkUrl.classList.add('link-url')
-          linkUrl.innerHTML =
-            decodeURI(page.url).substring(0, 50).replace(' ', '')
+            let title = document.createElement("p");
+            title.classList.add("link-title");
+            title.innerText = onlinePdfTitle(page.url);
+            let linkUrl = document.createElement("p");
+            linkUrl.classList.add("link-url");
+            linkUrl.innerHTML = onlineDisplayPath(page.url);
 
-          let icon = document.createElement('img')
-          icon.classList.add('link-thumb')
-          icon.src = `chrome://favicon/${page.url}`
+            let icon = document.createElement("img");
+            icon.classList.add("link-thumb");
+            icon.src = `chrome://favicon/${page.url}`;
 
-          leftDiv.appendChild(icon)
-          leftDiv.appendChild(title)
-          leftDiv.appendChild(linkUrl)
+            const save = buildSaveElement(page, 'online')
 
-          leftDiv.addEventListener('click',
-            function () {
-              window.open(page.url)
-            })
+            saveDiv.appendChild(save);
+            leftDiv.appendChild(icon);
+            leftDiv.appendChild(title);
+            leftDiv.appendChild(linkUrl);
 
-          listItem.appendChild(leftDiv)
-          listItem.appendChild(rightDiv)
-          onlineList.appendChild(listItem)
+            leftDiv.addEventListener("click", function() {
+              window.open(page.url);
+            });
+
+            saveDiv.addEventListener("click", function(e) {
+              saveOnlinePdf(e);
+            });
+
+            listItem.appendChild(saveDiv);
+            listItem.appendChild(leftDiv);
+            listItem.appendChild(rightDiv);
+            onlineList.appendChild(listItem);
+          }
         }
-      }
-    })
-    footer(onlineCount)
-    searchDownloads()
-    console.log(`${onlineCount} online PDFs found.`)
-  })
+      });
+      footer(onlineCount, "online");
+      searchDownloads();
+      console.log(`${onlineCount} online PDFs found.`);
+    }
+  );
 }
 
-let localFiles = []
+function buildSaveElement(pdf, type) {
+  let save = document.createElement("p");
+  save.classList.add("save-link");
 
-function searchDownloads () {
-  chrome.downloads.search({
-    limit: 1000,
-    orderBy: ['-startTime']
-  }, function (
-    data) {
-    data.forEach(function (file, i) {
-      if (file.filename.endsWith('.pdf')) {
-        if (!localFiles.includes(file.filename) &&
-            localPdfCount < 30) {
-          localFiles.push(file.filename)
-          localPdfCount++
+  save = (type === 'online')
+    ? onlineSaveDetails(pdf, save)
+    : downloadDataset(pdf, save)
 
-          let leftDiv = document.createElement('div')
-          let rightDiv = document.createElement('div')
-          leftDiv.classList.add('list-div', 'left')
-          rightDiv.classList.add('list-div', 'right')
+  return save
+}
 
-          let fileItem = document.createElement('li')
-          fileItem.classList.add('list-item', 'file-item')
+function onlineSaveDetails(pdf, save) {
+  save.dataset.title = onlinePdfTitle(pdf.url);
+  save.dataset.url = pdf.url;
 
-          let icon = document.createElement('img')
-          icon.classList.add('link-thumb')
-          chrome.downloads.getFileIcon(
-            file.id, {
-              size: 16
-            },
-            function (iconUrl) {
-              icon.src = iconUrl
-            })
+  const saveIcon = setSaveIcon(pdf)
+  if (saveIcon) {
+    save.appendChild(saveIcon);
+  }
+  return save
+}
 
-          let title = document.createElement('p')
-          title.classList.add('link-title')
-          title.classList.add('local-title')
-          title.innerText = file.filename.substring(
-            file.filename.lastIndexOf('\\') + 1, file.filename.length - 4)
+function downloadDataset(pdf, save) {
+  save.dataset.title = localPdfTitle(pdf.filename);
+  save.dataset.fileId = pdf.id;
+  save.dataset.url = pdf.filename;
+  save.innerText = "save!";
+  return save
+}
 
-          let linkUrl = document.createElement('p')
-          linkUrl.classList.add('link-url')
-          linkUrl.innerHTML = file.filename.substring(0, 50)
-          // linkUrl.innerHTML = file.filename // .substring(0, file.filename.lastIndexOf('/'))
+function setSaveIcon(page) {
+  let saveIcon = document.createElement("img");
+  saveIcon.id = page.url;
+  saveIcon.src = "../../assets/icons8-pin-24_white.png";
+  return saveIcon
+}
 
-          leftDiv.appendChild(icon)
-          leftDiv.appendChild(title)
-          leftDiv.appendChild(linkUrl)
+function onlinePdfTitle(url) {
+  var decodedUri = decodeURI(url);
+  var startIdx = url.lastIndexOf("/") + 1;
+  var endIdx = url.length - 4;
 
-          leftDiv.addEventListener(
-            'click',
-            function () {
-              chrome.downloads.open(file.id)
-            })
+  return decodedUri.substring(startIdx, endIdx);
+}
 
-          let more = document.createElement('img')
-          more.id = 'more_icon'
-          more.src = '../../assets/More.png'
-          more.addEventListener('click',
-            function () {
-              chrome.downloads.show(file.id)
-            })
+function localPdfTitle(filename) {
+  var startIdx = filename.lastIndexOf("\\") + 1;
+  var endIdx = filename.length - 4;
+  return filename.substring(startIdx, endIdx);
+}
 
-          rightDiv.appendChild(more)
+function localDisplayPath(filename) {
+  return filename.substring(0, 50);
+}
 
-          fileItem.appendChild(leftDiv)
-          fileItem.appendChild(rightDiv)
-          fileElement.appendChild(fileItem)
-        } else {
-          // console.log(`[INFO] skipped duplicate file: ${file.filename}.`)
+let localFiles = [];
+
+function searchDownloads() {
+  chrome.downloads.search(
+    {
+      limit: 1000,
+      orderBy: ["-startTime"]
+    },
+    function(data) {
+      data.forEach(function(file, i) {
+        if (file.filename.endsWith(".pdf")) {
+          if (!localFiles.includes(file.filename) && localPdfCount < 30) {
+            localFiles.push(file.filename);
+            localPdfCount++;
+
+            let saveDiv = document.createElement("div");
+            let leftDiv = document.createElement("div");
+            let rightDiv = document.createElement("div");
+            saveDiv.classList.add("list-div", "left");
+            leftDiv.classList.add("list-div", "left");
+            rightDiv.classList.add("list-div", "right");
+
+            let fileItem = document.createElement("li");
+            fileItem.classList.add("list-item", "file-item");
+
+            let icon = document.createElement("img");
+            icon.classList.add("link-thumb");
+            chrome.downloads.getFileIcon(
+              file.id,
+              {
+                size: 16
+              },
+              function(iconUrl) {
+                icon.src = iconUrl;
+              }
+            );
+
+            let title = document.createElement("p");
+            title.classList.add("link-title");
+            title.classList.add("local-title");
+            title.innerText = localPdfTitle(file.filename);
+
+            let linkUrl = document.createElement("p");
+            linkUrl.classList.add("link-url");
+            linkUrl.innerHTML = localDisplayPath(file.filename);
+            // linkUrl.innerHTML = file.filename // .substring(0, file.filename.lastIndexOf('/'))
+
+            const save = buildSaveElement(file, 'download')
+
+            saveDiv.appendChild(save);
+            leftDiv.appendChild(icon);
+            leftDiv.appendChild(title);
+            leftDiv.appendChild(linkUrl);
+
+            leftDiv.addEventListener("click", function() {
+              chrome.downloads.open(file.id);
+            });
+
+            let more = document.createElement("img");
+            more.id = "more_icon";
+            more.src = "../../assets/More.png";
+            more.addEventListener("click", function() {
+              chrome.downloads.show(file.id);
+            });
+
+            saveDiv.addEventListener("click", function(e) {
+              saveLocalPdf(e);
+            });
+
+            rightDiv.appendChild(more);
+
+            fileItem.appendChild(saveDiv);
+            fileItem.appendChild(leftDiv);
+            fileItem.appendChild(rightDiv);
+            fileElement.appendChild(fileItem);
+          } else {
+            // console.log(`[INFO] skipped duplicate file: ${file.filename}.`)
+          }
         }
-      }
-    })
+      });
 
-    // console.log(`[INFO] ${localPdfCount} local PDFs found.`)
+      // console.log(`[INFO] ${localPdfCount} local PDFs found.`)
 
-    loadSettings()
-  })
+      loadSettings();
+    }
+  );
 }
 
-function footer (count) {
-  let plural = (count > 1 ? 's' : '')
+function footer(count, contextString) {
+  let plural = count > 1 ? "s" : "";
 
-  let footerDivs = document.getElementsByClassName('footer')
-  let footerLeft = document.getElementById('footer-left')
+  let footerDivs = document.getElementsByClassName("footer");
+  let footerLeft = document.getElementById("footer-left");
 
-  let countDisplay = document.getElementById('count-display')
+  let countDisplay = document.getElementById("count-display");
 
-  countDisplay.innerHTML = `Showing ${count} online PDF${plural}.`
-}
-
-function localFooter (count) {
-  let plural = (count > 1 ? 's' : '')
-
-  let footerDivs = document.getElementsByClassName('footer')
-  let footerLeft = document.getElementById('footer-left')
-
-  let countDisplay = document.getElementById('count-display')
-
-  countDisplay.innerHTML = `Showing ${count} local PDF${plural}.`
+  countDisplay.innerHTML = `Showing ${count} ${contextString} PDF${plural}.`;
 }
 
 // tab buttons
-let onlineTabLink = document.getElementById('online-tab-link')
-let localTabLink = document.getElementById('local-tab-link')
-let settingsTabLink = document.getElementById('settings-link')
+let onlineTabLink = document.getElementById("online-tab-link");
+let localTabLink = document.getElementById("local-tab-link");
+let savedTabLink = document.getElementById("saved-tab-link");
+let settingsTabLink = document.getElementById("settings-link");
 
 // event handlers for tab buttons
-onlineTabLink.addEventListener('click',
-  function (event) {
-    footer(onlineCount)
-    openTab(event, 'online')
-  })
+onlineTabLink.addEventListener("click", function(event) {
+  footer(onlineCount, "online");
+  openTab(event, "online");
+});
 
-localTabLink.addEventListener('click', function (event) {
-  localFooter(localPdfCount)
-  openTab(event, 'local')
-})
+localTabLink.addEventListener("click", function(event) {
+  footer(localPdfCount, "local");
+  openTab(event, "local");
+});
 
-settingsTabLink.addEventListener(
-  'click',
-  function () {
-    open('../options/options.html')
-  })
+savedTabLink.addEventListener("click", function(event) {
+  savedTabContainer = document.getElementById("saved-list");
+  // clear the container so that live reload on click
+  // doesn't result in duplicate rows
+  while (savedTabContainer.firstChild)
+    savedTabContainer.removeChild(savedTabContainer.firstChild);
+  populateSavedTab();
+  openTab(event, "saved");
+});
 
-onlineTabLink.click()
+settingsTabLink.addEventListener("click", function() {
+  open("../options/options.html");
+});
+
+onlineTabLink.click();
 
 // function that handles switching between tabs
-function openTab (evt, tabName) {
-  var i, tabcontent, tablinks
-  tabcontent = document.getElementsByClassName('tabcontent')
+function openTab(evt, tabName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
   for (i = 0; i < tabcontent.length; i++) {
-    tabcontent[i].style.display = 'none'
+    tabcontent[i].style.display = "none";
   }
-  tablinks = document.getElementsByClassName('tablinks')
+  tablinks = document.getElementsByClassName("tablinks");
   for (i = 0; i < tablinks.length; i++) {
-    tablinks[i].className = tablinks[i].className.replace(' active', '')
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
   }
-  document.getElementById(tabName).style.display = 'inline-block'
-  evt.currentTarget.className += ' active'
+  document.getElementById(tabName).style.display = "inline-block";
+  evt.currentTarget.className += " active";
 }
 
 // function that loads the settings from the options.js script
-function loadSettings () {
-  chrome.storage.sync.get(['savedTab', 'filesPerPage'], function (result) {
-    console.log(result)
+function loadSettings() {
+  chrome.storage.sync.get(["savedTab", "filesPerPage"], function(result) {
+    console.log(result);
     if (result.savedTab) {
-      document.getElementById('online-footer').style = 'color: red'
+      document.getElementById("online-footer").style = "color: red";
     }
 
     if (result.filesPerPage) {
       // TODO
     }
-  })
+  });
+}
+
+// *******SAVING AND DISPLAYING SAVED PDFs*******
+function populateSavedTab() {
+  // TODO: Should I have called the icons method from within the build markup function?
+  getFromStorage(getDownloadIcons);
+}
+
+function getDownloadIcons(chromeStorage) {
+  footerData(chromeStorage.savedPdfs);
+  if (typeof chromeStorage.savedPdfs === "undefined") {
+    return;
+  }
+
+  let savedPdfsCopy = JSON.parse(JSON.stringify(chromeStorage.savedPdfs));
+  let promises = [];
+
+  savedPdfsCopy.forEach(function(pdf) {
+    if (pdf.type === "online") {
+      return;
+    }
+    promises.push(
+      new Promise(function(resolve, reject) {
+        const fileIdString = pdf.fileId;
+        const fileIdInt = parseInt(fileIdString);
+        // had to find icons here instead of on save
+        chrome.downloads.getFileIcon(
+          fileIdInt,
+          {
+            size: 16
+          },
+          function(iconUrl) {
+            pdf.iconUrl = iconUrl;
+            resolve();
+          }
+        );
+      })
+    );
+  });
+
+  Promise.all(promises).then(function(results) {
+    buildSavedMarkup(savedPdfsCopy);
+  });
+}
+
+function footerData(savedPdfCollection) {
+  const count = (typeof savedPdfCollection === 'undefined')
+    ? 0
+    : savedPdfCollection.length
+
+  footer(count, "saved");
+}
+
+function buildSavedMarkup(savedPdfCollection) {
+  savedPdfCollection.forEach(function(pdf) {
+    const listItem = buildListItem(pdf)
+    savedList.appendChild(listItem);
+  });
+}
+
+function buildListItem(pdf) {
+  let listItem = document.createElement("li");
+  listItem.classList.add("list-item");
+
+  const leftDiv = buildLeftDiv(pdf);
+  const rightDiv = buildRightDiv(pdf);
+
+  listItem.appendChild(leftDiv);
+  listItem.appendChild(rightDiv);
+  return listItem
+}
+
+function buildRightDiv(pdf) {
+  let rightDiv = document.createElement("div");
+  rightDiv.classList.add("list-div", "right");
+  if (pdf.type === 'online') { return rightDiv }
+
+  let more = document.createElement("img");
+  more.id = "more_icon";
+  more.src = "../../assets/More.png";
+  more.addEventListener("click", function() {
+    chrome.downloads.show(parseInt(pdf.fileId));
+  });
+
+  rightDiv.appendChild(more);
+
+  return rightDiv
+}
+
+function buildLeftDiv(pdf) {
+  let leftDiv = document.createElement("div");
+  leftDiv.classList.add("list-div", "left");
+
+  const title = pdfTitle(pdf)
+  const linkUrl = pdfLinkUrl(pdf)
+  const icon = pdfIcon(pdf)
+
+  leftDiv.appendChild(icon);
+  leftDiv.appendChild(title);
+  leftDiv.appendChild(linkUrl);
+  leftDiv.addEventListener("click", function() {
+    window.open(pdf.url)
+  });
+
+  return leftDiv
+}
+
+function pdfIcon(pdf) {
+  let icon = document.createElement("img");
+  icon.classList.add("link-thumb");
+  icon.src = typeof pdf.iconUrl === "undefined" ? "" : pdf.iconUrl;
+  return icon;
+}
+
+function pdfLinkUrl(pdf) {
+  let linkUrl = document.createElement("p");
+  linkUrl.classList.add("link-url");
+  linkUrl.innerHTML = formatPdfDisplayPath(pdf.url, pdf.type)
+  return linkUrl
+}
+
+function pdfTitle(pdf) {
+  let title = document.createElement("p");
+  title.classList.add("link-title");
+  title.innerText = pdf.title;
+  return title
+}
+
+function formatPdfDisplayPath(pathString, type) {
+  return type === "online"
+    ? onlineDisplayPath(pathString)
+    : localDisplayPath(pathString);
+}
+
+function onlineDisplayPath(pathString) {
+  return decodeURI(pathString)
+      .substring(0, 50)
+      .replace(" ", "")
+}
+
+function saveOnlinePdf(e) {
+  const saveIcon = document.getElementById(e.target.id)
+  const saveDiv = saveIcon.closest(".save-link")
+
+  var title = saveDiv.dataset.title;
+  var pdfUrl = saveDiv.dataset.url;
+  var newSavedPdf = {
+    title: title,
+    url: pdfUrl,
+    type: "online",
+    iconUrl: `chrome://favicon/${pdfUrl}`
+  };
+
+  saveToStorage(newSavedPdf, "url", pdfUrl);
+}
+
+function saveLocalPdf(e) {
+  var title = e.target.dataset.title;
+  var fileId = e.target.dataset.fileId;
+  var url = e.target.dataset.url;
+  var newSavedPdf = {
+    title: title,
+    fileId: fileId,
+    url: url,
+    type: "local"
+  };
+
+  saveToStorage(newSavedPdf, "fileId", fileId);
+}
+
+function saveToStorage(newSavedPdf, uniqueKey, uniqueKeyVal) {
+  getFromStorage(function(response) {
+    var currentSaves = response.savedPdfs || [];
+    if (!isAlreadySaved(currentSaves, uniqueKey, uniqueKeyVal)) {
+      currentSaves.push(newSavedPdf);
+      setInStorage(currentSaves);
+    }
+  });
+}
+
+function isAlreadySaved(currentSaves, key, newVal) {
+  return currentSaves.some(function(savedPdf) {
+    return savedPdf[key] === newVal;
+  });
+}
+
+function setInStorage(currentSaves) {
+    chrome.storage.sync.set({ savedPdfs: currentSaves }, function(response) {
+    console.log("pdf saved");
+  });
+}
+
+function getFromStorage(callback) {
+  return chrome.storage.sync.get("savedPdfs", callback);
 }
